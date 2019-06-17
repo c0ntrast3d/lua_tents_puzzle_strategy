@@ -5,5 +5,4 @@
 ---
 
 local MapReader = require("io.MapReader")
-print(string.match('a1cd', '%d'))
 MapReader.parse(arg[1])

@@ -4,10 +4,12 @@
 --- DateTime: 2019-06-13 15:04
 ---
 
-local M = {}
-
+local json = require('utils.json')
+local mapPrinter = require('io.MapPrinter')
 local StringUtils = require('utils.StringUtils')
 local NumberUtils = require('utils.NumberUtils')
+
+local M = {}
 
 function map(func, tbl)
     local newtbl = {}
@@ -22,31 +24,54 @@ end
     - b' at the end is needed in some systems to open the file in binary mode
 ]]
 
-local function fileExists(path)
-    local file = io.open(path, 'rb')
-    if file then
-        file:close()
+local function tryReadJsonMap(path)
+    local file = assert(io.open(path, "rb"), string.format("Unable to open file :: %s", path))
+    local content = file:read("*all")
+    file:close()
+    return content
+end
+
+local getMapDimension = function(decodedJson)
+    return assert(decodedJson['dimension'], 'Map dimension not specified!')
+end
+
+local getMapHeight = function(decodedJson)
+    return assert(#decodedJson["map"], 'Map not specified!')
+end
+
+local getTopHints = function(decodedJson, mapDimension)
+    local hints = assert(decodedJson["topHints"], 'Top Hints not specified!')
+    return #hints == mapDimension and hints or error('Top hints length should be same as map dimension')
+end
+
+local getLeftHints = function(decodedJson, mapDimension)
+    local hints = assert(decodedJson["leftHints"], 'Left Hints not specified!')
+    return #hints == mapDimension and hints or error('Left hints length should be same as map dimension')
+end
+
+local getMap = function(decodedJson, mapDimension)
+    local mapHeight = getMapHeight(decodedJson)
+    assert(mapDimension == mapHeight,
+            string.format("Invalid map height :: found %d | should be %d",
+                    mapHeight,
+                    mapDimension)
+    )
+    assert(#decodedJson["map"][1] == mapDimension, "Map width and height should be the same!")
+    local map = {}
+    for i = 1, mapDimension do
+        assert(decodedJson['map'][i], "invalid dimension")
+        local mapLine = {}
+        for j = 1, #decodedJson["map"][i] do
+            table.insert(mapLine, decodedJson["map"][i][j])
+        end
+        table.insert(map, mapLine)
     end
-    return file ~= nil
+    return map
 end
 
-local getMapDimesnsion = function(line)
 
-end
 
-local getMapLine = function(iterator)
-
-end
-
-local getTopHints = function(line)
-
-end
-
-local getLeftHints = function(line)
-
-end
-
-function M.parse(path)
+--[[function M.parse(path)
     assert(fileExists(path), string.format('File %s does not exist', path))
     local mapWidth = 0
 
@@ -61,7 +86,22 @@ function M.parse(path)
             print(#currentLine)
         end -- for line in io.lines(path) do
     end
-    
+
+end]]
+
+local decodeJsonMap = function(path)
+    return json.decode(tryReadJsonMap(path))
+end
+
+M.parse = function(path)
+    local decodedJson = decodeJsonMap(path)
+    local mapDimension = getMapDimension(decodedJson)
+    local map = getMap(decodedJson, mapDimension)
+    local topHints = getTopHints(decodedJson, mapDimension)
+    local leftHints = getLeftHints(decodedJson, mapDimension)
+    print(table.unpack(leftHints))
+    print(table.unpack(topHints))
+    mapPrinter.printMap(map)
 end
 
 return M
