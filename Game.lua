@@ -5,5 +5,5 @@
 ---
 
 local MapReader = require("io.MapReader")
-
-print(table.unpack(MapReader.parse(arg[1])))
+print(string.match('a1cd', '%d'))
+MapReader.parse(arg[1])
