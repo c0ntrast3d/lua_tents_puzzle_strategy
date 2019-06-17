@@ -7,11 +7,17 @@
 local M = {}
 
 M.isInt = function(n)
-    return ((type(n) == "number") and (math.floor(n) == n)) and true or error(string.format('%s is not a number', n))
+    return ((type(n) == 'number') and (math.floor(n) == n)) and true or error(string.format('%s is not a correct number :: should be integer', n))
 end
 
 M.isBinary = function(number)
-    return (number <= 1 and number >= 0) and true or error(string.format('Only 0 or 1 is allowed for the map field :: found %d', number))
+    return (number <= 1 and number >= 0) and true or error(string.format('Only 0 or 1 are allowed in the map field :: found %d', number))
+end
+
+M.isBetween = function(number, min, max)
+    return (number >= min and number <= max)
+            and true
+            or error(string.format('Number of tents can not exceed map size :: found %d', number))
 end
 
 return M

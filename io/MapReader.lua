@@ -5,72 +5,18 @@
 ---
 
 local json = require('utils.json')
+local MapUtils = require('utils.MapUtils')
 local MapPrinter = require('io.MapPrinter')
-local StringUtils = require('utils.StringUtils')
-local NumberUtils = require('utils.NumberUtils')
+local Cell = require('entities.Cell')
+local CellType = require('entities.CellType')
 
 local M = {}
 
-function map(func, tbl)
-    local newtbl = {}
-    for i, v in pairs(tbl) do
-        newtbl[i] = func(v)
-    end
-    return newtbl
-end
-
 local function tryReadJsonMap(path)
-    local file = assert(io.open(path, "rb"), string.format("Unable to open file :: %s", path))
-    local content = file:read("*all")
+    local file = assert(io.open(path, 'rb'), string.format('Unable to open file :: %s', path))
+    local content = file:read('*all')
     file:close()
     return content
-end
-
-local getMapDimension = function(decodedJson)
-    return assert(decodedJson['dimension'], 'Map dimension not specified!')
-end
-
-local getMapHeight = function(decodedJson)
-    return assert(#decodedJson["map"], 'Map not specified!')
-end
-
-local getTopHints = function(decodedJson, mapDimension)
-    local hints = assert(decodedJson["topHints"], 'Top Hints not specified!')
-    return #hints == mapDimension and hints or error('Top hints length should be same as map dimension')
-end
-
-local getLeftHints = function(decodedJson, mapDimension)
-    local hints = assert(decodedJson["leftHints"], 'Left Hints not specified!')
-    return #hints == mapDimension and hints or error('Left hints length should be same as map dimension')
-end
-
-local verifyLine = function(line)
-    local splitted = StringUtils.split(tostring(table.unpack(line)), '([^,%s]+)')
-    for _, v in ipairs(splitted) do
-        assert(NumberUtils.isInt(tonumber(v)), "Invalid format :: " .. v)
-    end
-end
-
-local getMap = function(decodedJson, mapDimension)
-    local mapHeight = getMapHeight(decodedJson)
-    assert(mapDimension == mapHeight,
-            string.format("Invalid map height :: found %d | should be %d",
-                    mapHeight,
-                    mapDimension)
-    )
-    assert(#decodedJson["map"][1] == mapDimension, "Map width and height should be the same!")
-    local map = {}
-    for i = 1, mapDimension do
-        assert(decodedJson['map'][i], "invalid dimension")
-        local mapLine = {}
-        for j = 1, #decodedJson["map"][i] do
-            local currentValue = decodedJson["map"][i][j]
-            assert(NumberUtils.isInt(currentValue) and NumberUtils.isBinary(currentValue))
-            table.insert(mapLine, currentValue)
-        end
-        table.insert(map, mapLine)
-    end -- for i = 1, mapDimension
-    return map
 end
 
 local decodeJsonMap = function(path)
@@ -79,15 +25,21 @@ end
 
 M.parse = function(path)
     local decodedJson = decodeJsonMap(path)
-    local mapDimension = getMapDimension(decodedJson)
-    local map = getMap(decodedJson, mapDimension)
-    local topHints = getTopHints(decodedJson, mapDimension)
-    local leftHints = getLeftHints(decodedJson, mapDimension)
+    local mapDimension = MapUtils.getMapDimension(decodedJson)
+    local map = MapUtils.getMap(decodedJson, mapDimension)
+    local topHints = MapUtils.getTopHints(decodedJson, mapDimension)
+    local leftHints = MapUtils.getLeftHints(decodedJson, mapDimension)
 
     print(table.unpack(leftHints))
     print(table.unpack(topHints))
-
     MapPrinter.printMap(map)
+
+    cell = Cell:create(1, 2)
+    cell2 = Cell:create(2, 1)
+    print(cell:getRow())
+    print(cell:getType())
+    print(CellType.toString(cell:getType()))
+    print(cell2:getRow())
 end
 
 return M
