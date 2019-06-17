@@ -5,7 +5,7 @@
 ---
 
 local json = require('utils.json')
-local mapPrinter = require('io.MapPrinter')
+local MapPrinter = require('io.MapPrinter')
 local StringUtils = require('utils.StringUtils')
 local NumberUtils = require('utils.NumberUtils')
 
@@ -18,11 +18,6 @@ function map(func, tbl)
     end
     return newtbl
 end
-
---[[
-    - check whether file exists and it's readable
-    - b' at the end is needed in some systems to open the file in binary mode
-]]
 
 local function tryReadJsonMap(path)
     local file = assert(io.open(path, "rb"), string.format("Unable to open file :: %s", path))
@@ -49,6 +44,13 @@ local getLeftHints = function(decodedJson, mapDimension)
     return #hints == mapDimension and hints or error('Left hints length should be same as map dimension')
 end
 
+local verifyLine = function(line)
+    local splitted = StringUtils.split(tostring(table.unpack(line)), '([^,%s]+)')
+    for _, v in ipairs(splitted) do
+        assert(NumberUtils.isInt(tonumber(v)), "Invalid format :: " .. v)
+    end
+end
+
 local getMap = function(decodedJson, mapDimension)
     local mapHeight = getMapHeight(decodedJson)
     assert(mapDimension == mapHeight,
@@ -62,32 +64,14 @@ local getMap = function(decodedJson, mapDimension)
         assert(decodedJson['map'][i], "invalid dimension")
         local mapLine = {}
         for j = 1, #decodedJson["map"][i] do
-            table.insert(mapLine, decodedJson["map"][i][j])
+            local currentValue = decodedJson["map"][i][j]
+            assert(NumberUtils.isInt(currentValue) and NumberUtils.isBinary(currentValue))
+            table.insert(mapLine, currentValue)
         end
         table.insert(map, mapLine)
-    end
+    end -- for i = 1, mapDimension
     return map
 end
-
-
-
---[[function M.parse(path)
-    assert(fileExists(path), string.format('File %s does not exist', path))
-    local mapWidth = 0
-
-    for line in io.lines(path) do
-        -- case - mapDimension
-        if string.match(line, '%d') then
-            local currentLine = StringUtils.split(line, '([^,%s]+)')
-            for _, v in pairs(currentLine) do
-                assert(NumberUtils.isInt(tonumber(v)), "Invalid format :: " .. v)
-            end
-            print(table.unpack(currentLine))
-            print(#currentLine)
-        end -- for line in io.lines(path) do
-    end
-
-end]]
 
 local decodeJsonMap = function(path)
     return json.decode(tryReadJsonMap(path))
@@ -99,9 +83,11 @@ M.parse = function(path)
     local map = getMap(decodedJson, mapDimension)
     local topHints = getTopHints(decodedJson, mapDimension)
     local leftHints = getLeftHints(decodedJson, mapDimension)
+
     print(table.unpack(leftHints))
     print(table.unpack(topHints))
-    mapPrinter.printMap(map)
+
+    MapPrinter.printMap(map)
 end
 
 return M
