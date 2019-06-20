@@ -70,4 +70,8 @@ function Cell:trySetType(type)
     return false
 end
 
+function Cell:print()
+    print(string.format('Row : %d | Col : %d | Type : %s', self.row, self.column, CellType.toString(self.type)))
+end
+
 return Cell

@@ -30,16 +30,7 @@ M.parse = function(path)
     local topHints = MapUtils.getTopHints(decodedJson, mapDimension)
     local leftHints = MapUtils.getLeftHints(decodedJson, mapDimension)
 
-    print(table.unpack(leftHints))
-    print(table.unpack(topHints))
-    MapPrinter.printMap(map)
-
-    cell = Cell:create(1, 2)
-    cell2 = Cell:create(2, 1)
-    print(cell:getRow())
-    print(cell:getType())
-    print(CellType.toString(cell:getType()))
-    print(cell2:getRow())
+    return mapDimension, map, topHints, leftHints
 end
 
 return M

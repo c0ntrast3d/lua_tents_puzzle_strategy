@@ -3,3 +3,162 @@
 --- Created by c0ntrast3d.
 --- DateTime: 2019-06-17 15:04
 ---
+
+local fOp = require('utils.FunctionalOperators')
+local CellType = require('entities.CellType')
+local MapState = require('entities.MapState')
+
+local M = {}
+
+M.stringifyMap = function(tentMap, dimension)
+    local result = ''
+    for row = 1, dimension do
+        for col = 1, dimension do
+            local char
+            local currentType = Cell.getType(tentMap[row][col])
+            if currentType == CellType.unknown() then
+                char = '_'
+            elseif currentType == CellType.tent() then
+                char = '▲'
+            elseif currentType == CellType.uncertain() then
+                char = '?'
+            elseif currentType == CellType.grass() then
+                char = '~'
+            elseif currentType == CellType.tree() then
+                char = 'T'
+            end
+            result = result .. char
+        end
+        result = result .. '\n'
+    end
+    return result
+end
+
+M.checkIsValid = function(tentMap, topHints, leftHints, dimension)
+    local tentsInRow = {}
+    for col = 1, dimension do
+        tentsInRow[col] = 0
+    end
+    for row = 1, dimension do
+        local tentsInColumn = 0
+        for col = 1, dimension do
+            if Cell:isTent(tentMap[row][col]) then
+                tentsInColumn = tentsInColumn + 1
+                tentsInRow[col] = tentsInRow[col] + 1
+            end -- if end
+        end -- for col = 1 end
+        if tentsInColumn + leftHints[row] > dimension then
+            return false, string.format('invalid row %d', row)
+        end
+    end -- for row = 1 end
+    for col = 1, dimension do
+        if tentsInRow[col] + topHints[col] > dimension then
+            return false, string.format('invalid column %d', col)
+        end
+    end
+    local totalTopHint = fOp.reduce(fOp.operator.add, topHints)
+    local totalLeftHint = fOp.reduce(fOp.operator.add, leftHints)
+    if totalTopHint ~= totalLeftHint then
+        return false, 'total tents in top hints must be equal to total tents in left hints'
+    end
+    return true, ''
+end -- checkIsValid End
+
+M.markNoHintAsGrass = function(tentMap, topHints, leftHints, dimension)
+    local isChanged = false
+    for row = 1, dimension do
+        if leftHints[row] == 0 then
+            for col = 1, dimension do
+                isChanged = Cell.trySetType(tentMap[row][col], CellType.grass())
+            end
+        end
+    end
+    for col = 1, dimension do
+        if topHints[col] == 0 then
+            for row = 1, dimension do
+                isChanged = Cell.trySetType(tentMap[row][col], CellType.grass())
+            end
+        end
+    end
+    return isChanged
+end
+
+M.checkIsSolved = function(tentMap, topHints, leftHints, dimension)
+    local tentsInRow = {}
+    local unsetRows = {}
+    -- init
+    for col = 1, dimension do
+        tentsInRow[col] = 0
+        unsetRows[col] = 0
+    end
+
+    for row = 1, dimension do
+        local tentsInColumn = 0
+        local unsetColumns = 0
+        for col = 1, dimension do
+            local cell = tentMap[row][col]
+            if cell:isTent() then
+                tentsInColumn = tentsInColumn + 1
+                tentsInRow[col] = tentsInRow[col] + 1
+            elseif cell:isNotSet() then
+                unsetColumns = unsetColumns + 1
+                unsetRows[col] = unsetRows[col] + 1
+            end -- if end
+        end -- for col
+
+        if tentsInColumn ~= leftHints[row] then
+            return false
+        end
+        if unsetColumns > 0 then
+            return false
+        end
+    end -- for row
+
+    for col = 1, dimension do
+        if tentsInRow[col] ~= topHints[col] then
+            return false
+        end
+        if unsetRows[col] then
+            return false
+        end
+        return true
+    end -- for end
+end -- check is solved end
+
+M.currentState = function(tentMap, topHints, leftHints, prevState, result, stepCount, description, dimension)
+    isValid, message = M.checkIsValid(tentMap, topHints, leftHints, dimension)
+    if not isValid then
+        local state = MapState:create(nil, nil, false, message)
+        table.insert(result, state)
+        return prevState, stepCount, false, true
+    end
+    --[[
+    var currentState = toHtml(tentMap);
+    if (prevState != currentState) {
+        var snapshot = new MapSnapshot(null, tentMap, false, isSolved, description);
+        result.push(snapshot);
+        if (isSolved) {
+           return [prevState, stepCount, false, true];
+        }
+        stepCount++;
+        prevState = currentState;
+        return [prevState, stepCount, true, false];
+    }
+    return [prevState, stepCount, false, false];
+]]
+    local isSolved = M.checkIsSolved(tentMap, topHints, leftHints, dimension)
+    local currentState = M.stringifyMap(tentMap, dimension)
+    if prevState ~= currentState then
+        local mapState = MapState:create(nil, tentMap, false, isSolved, message)
+        table.insert(result, mapState)
+        if isSolved then
+            return prevState, stepCount, false, true
+        end
+        stepCount = stepCount + 1
+        prevState = currentState
+        return prevState, stepCount, true, false
+    end
+    return prevState, stepCount, false, false
+end
+
+return M

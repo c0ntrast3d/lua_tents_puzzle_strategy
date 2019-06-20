@@ -5,4 +5,6 @@
 ---
 
 local MapReader = require("io.MapReader")
-MapReader.parse(arg[1])
+local Solver = require('solver.Solver')
+
+Solver.solve(MapReader.parse(arg[1]))
