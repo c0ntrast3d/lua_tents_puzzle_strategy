@@ -20,5 +20,9 @@ M.isBetween = function(number, min, max)
             or error(string.format('Number of tents can not exceed map size :: found %d', number))
 end
 
+M.fromBoolean = function(boolean)
+    return boolean == true and 1 or 0
+end
+
 return M
 
