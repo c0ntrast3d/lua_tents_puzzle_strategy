@@ -3,8 +3,6 @@
 --- Created by c0ntrast3d.
 ---
 
-local MapUtils = require('utils.MapUtils')
-
 local M = {}
 
 M.clone = function(source)

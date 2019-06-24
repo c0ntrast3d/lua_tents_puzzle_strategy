@@ -17,25 +17,4 @@ M.initCounts = function(dimension)
     return rowCount, colCount
 end
 
---[[for row = 1, #map do
-    if map[row][y] == 'T' or map[row][y] == "." or map[row][y] == "▲" then
-        totalColOccupants = totalColOccupants + 1
-    end
-end
-
-if #map - totalColOccupants == colHints[ncol] then
-    for i = 1, #map do
-        if (map[i][y] == "?") then
-            map[i][y] = "▲"
-        end
-    end
-    if (colHints[y] == colTentCount[y]) then
-        for i = 1, #map do
-            if (map[i][y] == "?") then
-                map[i][y] = "."
-            end
-        end
-    end
-end]]
-
 return M
