@@ -7,4 +7,4 @@
 local MapReader = require("io.MapReader")
 local Solver = require('solver.Solver')
 
-Solver.solve(MapReader.parse(arg[1]))
+Solver.start(MapReader.parse(arg[1]))
