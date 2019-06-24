@@ -3,9 +3,8 @@
 --- Created by c0ntrast3d.
 ---
 ---
-
-local TableUtils = require('utils.TableUtils')
-local MapPrinter = require('io.MapPrinter')
+local Cell = require('entities.Cell')
+local CellType = require('entities.CellType')
 local SolverHelpers = require('solver.SolverHelpers')
 
 local M = {}
@@ -15,36 +14,6 @@ local rowHints = {}
 local colHints = {}
 local rowTentCount = {}
 local colTentCount = {}
-
---[[local map = {
-    { '?', 'T', '?', 'T', '?', '?' },
-    { '?', '?', '?', '?', 'T', '?' },
-    { 'T', '?', 'T', '?', '?', '?' },
-    { '?', '?', '?', '?', '?', 'T' },
-    { 'T', '?', '?', '?', '?', '?' },
-    { '?', '?', '?', '?', '?', '?' }
-}
-local rowHints = { 2, 1, 1, 2, 1, 0 }
-local colHints = { 2, 0, 2, 0, 2, 1 }
-local rowTentCount = { 0, 0, 0, 0, 0, 0 }
-local colTentCount = { 0, 0, 0, 0, 0, 0 }]]
-
---[[local map = {
-    { '?', 'T', '?', '?', '?', '?', '?', '?' },
-    { '?', 'T', '?', '?', '?', '?', 'T', '?' },
-    { '?', '?', '?', '?', 'T', '?', '?', 'T' },
-    { 'T', '?', '?', '?', '?', 'T', '?', '?' },
-    { '?', '?', '?', 'T', '?', '?', '?', '?' },
-    { '?', '?', 'T', '?', '?', '?', 'T', '?' },
-    { '?', '?', '?', '?', '?', '?', 'T', 'T' },
-    { '?', '?', '?', '?', '?', '?', '?', '?' }
-}
-
-local rowHints = { 1,2,1,2,2,1,2,1 }
-local colHints = { 1,1,2,1,1,2,0,4 }
-local rowTentCount = { 0, 0, 0, 0, 0, 0, 0, 0 }
-local colTentCount = { 0, 0, 0, 0, 0, 0, 0, 0 }]]
-
 
 --[[
     if cell is valid for a tent isValid according to the rules -> place a tent
