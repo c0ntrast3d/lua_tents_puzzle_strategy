@@ -25,4 +25,29 @@ M.printMap = function(map, rowHints, colHints)
     print(space .. ' ' .. bottom .. ' ')
 end
 
+M.printWithPointerToCurrentRC = function(map, rowHints, colHints, crow, ccol)
+    local space = '   '
+    local borderTop = space .. '_' .. string.rep("__", #map)
+    local borderBottom = space .. '¯' .. string.rep("¯¯", #map)
+    local count = 1
+    local bottom = ""
+    print(borderTop)
+    for row = 1, #map do
+        local toPrint = ""
+        for col = 1, #map do
+            if row == crow and col == ccol then
+                toPrint = toPrint .. 'X' .. " "
+            else
+                toPrint = toPrint .. map[row][col] .. " "
+
+            end
+        end
+        print(rowHints[count] .. " | " .. toPrint .. '|')
+        bottom = bottom .. colHints[count] .. " "
+        count = count + 1
+    end
+    print(borderBottom)
+    print(space .. ' ' .. bottom .. ' ')
+end
+
 return M

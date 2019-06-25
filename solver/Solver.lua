@@ -16,7 +16,122 @@ local rowTentCount = {}
 local colTentCount = {}
 
 --[[
+prepare the map with iterative helpers then run recursive solver
+ ]]
+
+local function prepareThenSolve()
+    markNotAdjacentAsGrass()
+    markZeroHintsOrUnknown()
+    if findUnknownCells() ~= nil then
+        row, col = findUnknownCells()
+        return solve(row, col)
+    elseif isGoal() then
+        return true
+    else
+        return nil
+    end
+end
+
+-- start the magic
+M.start = function(readerOutput)
+    map = readerOutput.map
+    rowHints = readerOutput.rowHints
+    colHints = readerOutput.colHints
+    rowTentCount, colTentCount = SolverHelpers.initCounts(readerOutput.mapDimension)
+    print('~~ Initial Map ~~')
+    MapPrinter.printMap(map, rowHints, colHints)
+    if prepareThenSolve() then
+        print('\nFound a solution:')
+        MapPrinter.printMap(map, rowHints, colHints)
+    else
+        print('\nNo solution found')
+        MapPrinter.printMap(map, rowHints, colHints)
+    end
+end
+
+local saveState = function()
+    local state = {}
+    state.board = TableUtils.deepcopy(map)
+    state.rowHints = TableUtils.deepcopy(rowHints)
+    state.colHints = TableUtils.deepcopy(colHints)
+    state.rowTentCount = TableUtils.deepcopy(rowTentCount)
+    state.colTentCount = TableUtils.deepcopy(colTentCount)
+    return state
+end
+
+local restoreState = function(previous)
+    map = previous.board
+    rowHints = previous.rowHints
+    colHints = previous.colHints
+    rowTentCount = previous.rowTentCount
+    colTentCount = previous.colTentCount
+end
+
+--[[
+check for unknown cell, then attempt putting a tent.
+run iterative helpers and continue recursion
+ ]]
+
+function solve(row, col)
+    MapPrinter.printWithPointerToCurrentRC(map, rowHints, colHints, row, col)
+    local currentState = saveState()
+    if isValid(row, col) then
+        map[row][col] = "▲"
+        colTentCount[col] = colTentCount[col] + 1
+        rowTentCount[row] = rowTentCount[row] + 1
+        -- mark all unknown cells adjacent to tent as grass
+        markGrass(row, col)
+        -- if hints are equal to #unknown cells for this r/c -> place tents
+        markTents(row, col)
+
+        if findUnknownCells() ~= nil then
+            row, col = findUnknownCells()
+            if solve(row, col) == true then
+                return true
+            else
+                print('~~ restoring to prev state ~~')
+                restoreState(currentState)
+                map[row][col] = "."
+                check = solve(row, col)
+                if check == true then
+                    return true
+                else
+                    return nil
+                end
+            end
+        else
+            if isGoal() then
+                return true
+            else
+                return nil
+            end
+        end
+
+    else
+        map[row][col] = "."
+        if (findUnknownCells() ~= nil) then
+            row, col = findUnknownCells()
+            if solve(row, col) then
+                return true
+            else
+                return nil
+            end
+        else
+            if isGoal() then
+                return true
+            else
+                return nil
+            end
+        end
+    end
+
+end
+
+--[[
     if cell is valid for a tent according to the rules -> place a tent
+    - validity criteria: tents on r/c should not exceed the hints for that r/c
+    - #tents == #trees
+    - tents can not be adjacent to other tents neither hor / ver nor diagonally
 ]]
 
 function isValid(row, col)
@@ -45,9 +160,9 @@ The number of threes and tents should be the same.
 
 function checkParity(x, y)
     local parity = -1
-    pred = { { x, y } }
-    for k, v in pairs(getNeighbors(x, y, '~~ isValidParity ~~')) do
-        parity = parity + countTrees(v[1], v[2], pred)
+    visited = { { x, y } }
+    for _, v in pairs(getNeighbors(x, y)) do
+        parity = parity + countTrees(v[1], v[2], visited)
     end
     if (parity >= 0) then
         return true
@@ -57,15 +172,15 @@ end
 
 --[[
 isValidParity helper.
-check for trees around a tent.
-recursively return the tree to tent parity.
+recursively check for trees around a tent
+return the tree to tent parity.
 ]]
 
 function countTrees(x, y, visited)
     table.insert(visited, { x, y })
     if (map[x][y] == "T") then
         local parity = 1
-        for k, v in pairs(getNeighbors(x, y, '~~ countTreesRec ~~')) do
+        for _, v in pairs(getNeighbors(x, y)) do
             if (not TableUtils.tableContainsTable(v, visited)) then
                 parity = parity + countTents(v[1], v[2], visited)
             end
@@ -78,17 +193,17 @@ end
 
 --[[
 isValidParity helper.
-check for any tents around a tree.
-recursively return the tree to tent parity.
+recursively check for any tents around a tree.
+return the tree to tent parity.
  ]]
 
-function countTents(x, y, pred)
-    table.insert(pred, { x, y })
+function countTents(x, y, visited)
+    table.insert(visited, { x, y })
     if map[x][y] == "▲" then
         local parity = -1
-        for k, v in pairs(getNeighbors(x, y, '~~ countTentsRec ~~')) do
-            if (not TableUtils.tableContainsTable(v, pred)) then
-                parity = parity + countTrees(v[1], v[2], pred)
+        for _, v in pairs(getNeighbors(x, y)) do
+            if (not TableUtils.tableContainsTable(v, visited)) then
+                parity = parity + countTrees(v[1], v[2], visited)
             end
         end
         return parity
@@ -101,7 +216,7 @@ Check that there are no tents adjacent to a given location
  ]]
 
 function noAdjTents(x, y)
-    for k, v in pairs(getTentAdjacent(x, y)) do
+    for _, v in pairs(getAdjacentTents(x, y)) do
         if (map[v[1]][v[2]] == "▲") then
             return false
         end
@@ -134,9 +249,8 @@ end
 get vertical, horizontal, and diagonal neighbors of a cell
  ]]
 
-function getTentAdjacent(x, y)
-
-    local neighbors = getNeighbors(x, y, '~~ getTentAdjacent ~~')
+function getAdjacentTents(x, y)
+    local neighbors = getNeighbors(x, y)
     if x > 1 and y > 1 then
         table.insert(neighbors, { x - 1, y - 1 })
     end
@@ -211,7 +325,7 @@ function markNotAdjacentAsGrass()
         for col = 1, #map do
             if (map[row][col] ~= 'T') then
                 map[row][col] = "."
-                for k, v in ipairs(getNeighbors(row, col, '~~ markNotAdjacentAsGrass ~~')) do
+                for _, v in ipairs(getNeighbors(row, col)) do
                     if map[v[1]][v[2]] == 'T' then
                         map[row][col] = "?"
                         break
@@ -227,7 +341,7 @@ end
 mark cells adjacent to a placed tent as grass
  ]]
 function markGrass(x, y)
-    for k, v in pairs(getTentAdjacent(x, y)) do
+    for _, v in pairs(getAdjacentTents(x, y)) do
         if (map[v[1]][v[2]] ~= 'T') then
             map[v[1]][v[2]] = "."
         end
@@ -241,44 +355,47 @@ of unknown spaces and tents based on hints -> if true -> mark as tents
  ]]
 
 function markZeroHintsOrUnknown()
-    local totalRowOccupied = 0
-    local totalColOccupied = 0
+    local rowsOccupied = 0
+    local colsOccupied = 0
+
     for row = 1, #map do
         for col = 1, #map do
             if map[row][col] == 'T' or map[row][col] == "." then
-                totalRowOccupied = totalRowOccupied + 1
+                rowsOccupied = rowsOccupied + 1
             end
             if rowHints[row] == 0 and map[row][col] ~= 'T' then
                 map[row][col] = "."
             end
         end
-        if #map - totalRowOccupied == rowHints[row] then
+        if #map - rowsOccupied == rowHints[row] then
             for j = 1, #map do
                 if (map[row][j] == "?") then
                     map[row][j] = "▲"
                 end
             end
         end
-        totalRowOccupied = 0
+        rowsOccupied = 0
     end
+
     for col = 1, #map do
         for row = 1, #map do
             if map[row][col] == 'T' or map[row][col] == "." then
-                totalColOccupied = totalColOccupied + 1
+                colsOccupied = colsOccupied + 1
             end
             if colHints[col] == 0 and map[row][col] ~= 'T' then
                 map[row][col] = "."
             end
         end
-        if #map - totalColOccupied == colHints[col] then
+        if #map - colsOccupied == colHints[col] then
             for i = 1, #map do
                 if (map[i][col] == "?") then
                     map[i][col] = "▲"
                 end
             end
         end
-        totalColOccupied = 0
+        colsOccupied = 0
     end
+
     MapPrinter.printMap(map, rowHints, colHints)
 end
 
@@ -320,114 +437,6 @@ function markTents(x, y)
         end
     end
 
-end
-
---[[
-prepare the map with iterative helpers then run recursive solver
- ]]
-
-local function prepareThenSolve()
-    markNotAdjacentAsGrass()
-    markZeroHintsOrUnknown()
-    if (findUnknownCells() ~= nil) then
-        row, col = findUnknownCells()
-        return solve(row, col)
-    elseif isGoal() then
-        return true
-    else
-        return nil
-    end
-end
-
-local saveState = function()
-    local state = {}
-    state.board = TableUtils.deepcopy(map)
-    state.rowHints = TableUtils.deepcopy(rowHints)
-    state.colHints = TableUtils.deepcopy(colHints)
-    state.rowTentCount = TableUtils.deepcopy(rowTentCount)
-    state.colTentCount = TableUtils.deepcopy(colTentCount)
-    return state
-end
-
-local restoreState = function(previous)
-    map = previous.board
-    rowHints = previous.rowHints
-    colHints = previous.colHints
-    rowTentCount = previous.rowTentCount
-    colTentCount = previous.colTentCount
-end
-
---[[
-check for unknown cell, then attempt to put a tent.
-run iterative helpers and continue recursion
- ]]
-
-function solve(row, col)
-    row, col = row, col
-    local currentState = saveState()
-    if isValid(row, col) then
-        map[row][col] = "▲"
-        colTentCount[col] = colTentCount[col] + 1
-        rowTentCount[row] = rowTentCount[row] + 1
-        markGrass(row, col)
-        markTents(row, col)
-
-        if findUnknownCells() ~= nil then
-            row, col = findUnknownCells()
-            if solve(row, col) == true then
-                return true
-            else
-                restoreState(currentState)
-                map[row][col] = "."
-                check = solve(row, col)
-                if check == true then
-                    return true
-                else
-                    return nil
-                end
-            end
-        else
-            if isGoal() then
-                return true
-            else
-                return nil
-            end
-        end
-
-    else
-        map[row][col] = "."
-        if (findUnknownCells() ~= nil) then
-            row, col = findUnknownCells()
-            if solve(row, col) then
-                return true
-            else
-                return nil
-            end
-        else
-            if isGoal() then
-                return true
-            else
-                return nil
-            end
-        end
-    end
-
-end
-
--- start the magic
-M.start = function(readerOutput)
-    map = readerOutput.map
-    rowHints = readerOutput.rowHints
-    colHints = readerOutput.colHints
-    rowTentCount, colTentCount = SolverHelpers.initCounts(readerOutput.mapDimension)
-    MapPrinter.printMap(map, rowHints, colHints)
-    if prepareThenSolve() then
-        print('\nFound a solution:')
-        MapPrinter.printMap(map, rowHints, colHints)
-    else
-        print('\nNo solution found')
-        MapPrinter.printMap(map, rowHints, colHints)
-    end
 end
 
 return M
